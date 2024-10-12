@@ -2,7 +2,7 @@
   "name": "full-backend",
   "version": "1.0.0",
   "description": "a backend development-youtube",
-  "type":"module",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "dev": "echo \"nodemon src/index.js"
@@ -14,6 +14,9 @@
   "author": "Pushpak Kumar",
   "license": "ISC",
   "devDependencies": {
-        "nodemon": "^3.1.7"
-      }
+    "nodemon": "^3.1.7"
+  },
+  "dependencies": {
+    "prettier": "^3.3.3"
+  }
 }
