@@ -1,6 +1,6 @@
 import {asyncHandler} from "../utils/asyncHandler.js";
 import {ApiError} from "../utils/ApiError.js"
-import {User} from "../models/user.model.js"
+import {User} from "../models/user.models.js"
 import {uploadOnCloudinary} from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js";
 
@@ -59,7 +59,7 @@ const registerUser = asyncHandler( async (req,res) => {
          console.log(req.files);
 
          const avatarLocalPath = req.files?.avatar[0]?.path;
-         const coverImageLocalPath = req.files?.coverimage[0]?.path;
+         const coverImageLocalPath = req.files?.coverImage[0]?.path;
 
          if(!avatarLocalPath){
             throw new ApiError(400,"Avatar file is required")
@@ -145,7 +145,7 @@ const loginUser = asyncHandler( async (req, res) => {
    })
 
 const logoutUser = asyncHandler(async(req, res) => {
-   await User.findByAndUpdate(
+   await User.findByIdAndUpdate(
          req.user._id,
          {
             $set: {
@@ -163,7 +163,8 @@ const logoutUser = asyncHandler(async(req, res) => {
          secure: true
         }
 
-        return res.status(200)
+        return res
+        .status(200)
         .clearCookie("accessToken", options)
         .clearCookie("refreshToken", options)
         .json(new ApiResponse(200, {}, "User logged Out"))
