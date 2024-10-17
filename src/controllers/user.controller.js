@@ -1,9 +1,29 @@
 import {asyncHandler} from "../utils/asyncHandler.js";
 import {ApiError} from "../utils/ApiError.js"
-import {User} from "../models/user.modals.js"
+import {User} from "../models/user.model.js"
 import {uploadOnCloudinary} from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js";
 
+
+const generateAccessAndRefreshTokens = async(userId) => 
+   {
+   try {
+      const user = await User.findById(userId)
+      const accessToken = user.generateAccessToken()
+      const refreshToken = user.generateRefreshToken()
+  // save to db
+      user.refreshToken = refreshToken
+      await user.save({ validateBeforeSave: false})
+
+      return {accessToken, refreshToken}
+
+
+      
+   } catch (error) {
+      throw new ApiError(500, "Somethimg went wrong while generating refresh and access token")
+      
+   }
+}
 const registerUser = asyncHandler( async (req,res) => {
   /* return  res.status(200).json({
         message:"ok and go!"
@@ -26,19 +46,20 @@ const registerUser = asyncHandler( async (req,res) => {
             [fullName , email, username, password].some((field) => field?.trim() === "")
          ){
          
-            throw new ApiError(400, "fullname is required")
+            throw new ApiError(400, "All fields are required")
          }
          
-         const existedUser = User.findOne({
+         const existedUser = await User.findOne({
             $or : [{username },{ email }]
          })
 
          if (existedUser) {
-            throw new apiError(409, "User with email or username already exists")
+            throw new ApiError(409, "User with email or username already exists")
          }
+         console.log(req.files);
 
          const avatarLocalPath = req.files?.avatar[0]?.path;
-         const coverimageLocalPath = req.files?.coverimage[0]?.path;
+         const coverImageLocalPath = req.files?.coverimage[0]?.path;
 
          if(!avatarLocalPath){
             throw new ApiError(400,"Avatar file is required")
@@ -69,10 +90,88 @@ const registerUser = asyncHandler( async (req,res) => {
          return res.status(201).json(
             new ApiResponse(200, createdUser, "User registered Successfully")
          )
-) }
+ })
 
+const loginUser = asyncHandler( async (req, res) => {
+   // req body -> data
+   // username or email
+   // find thw user
+   // password check
+   //access and refresh token
+   // send cookie
+
+   const {email, username, password} = req.body
+
+   if(!username || email) {
+      throw new ApiError(400, "Username or email is required")
+   }
+
+   const user = await User.findOne({
+      $or: [{username}, {email}]
+   })
+
+   if(!user) {
+      throw new ApiError(404, "User doen not exist")
+   }
+
+   const isPasswordValid = await user.isPasswordCorrect(password)
+
+   if(!isPasswordValid) {
+      throw new ApiError(401, "Invalid user credentials")
+   }
+    const {accessToken, refreshToken} =  await generateAccessAndRefreshTokens(user,_id)
+
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
+
+    //for sending cookies
+    const options = {
+      httpOnly: true, // manage from sever only now
+      secure: true
+    }
+
+    return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+      new ApiResponse(
+         200,
+         {
+            user: loggedInUser, accessToken, refreshToken
+         },
+         "User logged In Successfully"
+      )
+    )
+   })
+
+const logoutUser = asyncHandler(async(req, res) => {
+   await User.findByAndUpdate(
+         req.user._id,
+         {
+            $set: {
+               refreshToken: undefined
+            }
+         },  
+            {
+               new: true
+            }
+         
+        )
+
+        const options = {
+         httpOnly: true,
+         secure: true
+        }
+
+        return res.status(200)
+        .clearCookie("accessToken", options)
+        .clearCookie("refreshToken", options)
+        .json(new ApiResponse(200, {}, "User logged Out"))
+    })
 
 
 export {
     registerUser,
+    loginUser,
+    logoutUser
 }
